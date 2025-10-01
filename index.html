@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AREVO SPORTs</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+<!-- Firebase compat SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<style>
+:root{--green:#0ea955;--yellow:#ffd400;--dark:#04110f;--card:rgba(255,255,255,0.03);font-family:Montserrat,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#04110f,#02100e);color:#fff;-webkit-font-smoothing:antialiased}
+.container{max-width:1100px;margin:16px auto;padding:12px}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:12px;background:linear-gradient(135deg,var(--green),var(--yellow));box-shadow:0 12px 40px rgba(0,0,0,0.6)}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(180deg,#042,var(--yellow));display:flex;align-items:center;justify-content:center;color:#042;font-weight:800;font-size:22px}
+nav{display:flex;gap:10px;align-items:center}
+.navlink{background:rgba(255,255,255,0.95);padding:8px 12px;border-radius:8px;font-weight:700;color:#042;text-decoration:none}
+.admin-btn{background:#042;color:var(--yellow);padding:8px 12px;border-radius:8px;font-weight:800;border:2px solid rgba(255,255,255,0.06);cursor:pointer}
+
+.main{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:16px}
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03)}
+.player{height:360px;border-radius:10px;overflow:hidden;background:#000;position:relative}
+video{width:100%;height:100%;object-fit:cover;background:#000}
+.controls{display:flex;gap:8px;margin-top:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px}
+.channel{border-radius:10px;overflow:hidden;background:var(--card);padding:10px;transition:transform .12s}
+.channel:hover{transform:translateY(-6px)}
+.poster{height:150px;background-size:cover;background-position:center;border-radius:8px}
+.title{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.epg{margin-top:8px;background:rgba(0,0,0,0.25);padding:8px;border-radius:8px;font-size:13px}
+.epg-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.05)}
+.epg-item:last-child{border-bottom:none}
+.aside .ad{height:100px;border-radius:8px;background-size:cover;background-position:center;cursor:pointer;margin-bottom:8px}
+
+.footer{margin-top:20px;text-align:center;color:rgba(255,255,255,0.6);padding:12px}
+
+/* admin full page */
+#adminPage{display:none;padding:12px}
+#adminPage.active{display:block}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:10px}
+.input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff;margin-bottom:8px}
+.btn{padding:8px 12px;border-radius:8px;border:none;background:var(--green);color:#042;font-weight:800;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--yellow)}
+
+/* modal admin code with blur */
+.modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:9999}
+.modal-backdrop.open{display:flex;backdrop-filter:blur(6px)}
+.modal-card{width:360px;background:linear-gradient(180deg,#07120f,#04110f);padding:18px;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.03)}
+
+/* small screens */
+@media(max-width:980px){.main{grid-template-columns:1fr}.player{height:240px}}
+@media(max-width:520px){header{flex-direction:column;align-items:flex-start;gap:10px}nav{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="container" id="appContainer">
+  <header>
+    <div class="brand"><div class="logo">A</div><div><h1 style="margin:0">AREVO SPORT</h1><div style="font-size:13px;color:#042">Live Sports</div></div></div>
+    <nav>
+      <a class="navlink" href="#" onclick="showPage('home')">Home</a>
+      <a class="navlink" href="#" onclick="showPage('channels')">Channels</a>
+      <a class="navlink" href="#" onclick="showPage('schedule')">Schedule</a>
+      <a class="navlink" href="#" onclick="showPage('about')">About</a>
+      <button class="admin-btn" id="btnOpenAdmin">Admin</button>
+    </nav>
+  </header>
+
+  <!-- MAIN PAGE -->
+  <main id="home" class="main">
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><div><strong id="liveTitle">Select a channel</strong><div style="font-size:13px;color:rgba(255,255,255,0.85)" id="liveDesc">AREVO SPORT live</div></div><div style="font-size:13px;color:rgba(255,255,255,0.85)" id="viewsSmall">Views: 0</div></div>
+      <div class="player"><video id="video" controls playsinline></video><div id="fallback" style="position:absolute;color:#ccc;font-weight:700">No stream selected</div></div>
+      <div class="controls"><button class="btn" id="muteBtn">Mute</button><button class="btn" id="stopBtn">Stop</button></div>
+      <h3 style="margin-top:12px">Channels</h3>
+      <div id="channelsGrid" class="grid"></div>
+    </section>
+
+    <aside class="card aside">
+      <h4>Advertisements</h4><div id="adsArea"></div>
+      <h4 style="margin-top:12px">Now / Upcoming</h4><div id="nowArea" class="epg small">Loading...</div>
+    </aside>
+  </main>
+
+  <!-- Channels page -->
+  <section id="channels" class="card" style="display:none">
+    <h2>All Channels</h2><div id="channelsList" class="grid"></div>
+  </section>
+
+  <!-- Schedule page -->
+  <section id="schedule" class="card" style="display:none">
+    <h2>All Schedule</h2><div id="scheduleList"></div>
+  </section>
+
+  <section id="about" class="card" style="display:none">
+    <h2>About</h2><p>AREVO SPORT</p>
+  </section>
+
+  <!-- ADMIN PAGE (Full page) -->
+  <section id="adminPage" class="card" aria-hidden="true">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2>Admin Console</h2><div><button class="btn ghost" id="btnExport">Export</button><button class="btn" id="btnCloseAdmin">Close Admin</button></div></div>
+
+    <div style="margin-top:12px" class="form-grid">
+      <div class="form">
+        <h3>Channels</h3>
+        <input id="ch_name" class="input" placeholder="Channel name (AREVO SPORT 1)">
+        <input id="ch_poster" class="input" placeholder="Poster image URL (https://...)">
+        <input id="ch_m3u8" class="input" placeholder=".m3u8 link (optional)">
+        <textarea id="ch_desc" class="input" placeholder="Short description" style="height:80px"></textarea>
+        <div style="display:flex;gap:8px"><button class="btn" id="btnAddChannel">Add Channel</button><button class="btn ghost" id="btnClearChannels">Clear All</button></div>
+      </div>
+
+      <div class="form">
+        <h3>EPG (Schedule)</h3>
+        <select id="epg_channel" class="input"></select>
+        <input id="epg_title" class="input" placeholder="Match title">
+        <input id="epg_start" type="datetime-local" class="input">
+        <div style="display:flex;gap:8px"><button class="btn" id="btnAddEpg">Add EPG</button><button class="btn ghost" id="btnClearEpg">Clear All EPG</button></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px" class="form-grid">
+      <div class="form">
+        <h3>Advertisements</h3>
+        <input id="ad_title" class="input" placeholder="Ad title">
+        <input id="ad_image" class="input" placeholder="Ad image URL (https://...)">
+        <input id="ad_link" class="input" placeholder="Redirect link">
+        <div style="display:flex;gap:8px"><button class="btn" id="btnAddAd">Add Ad</button><button class="btn ghost" id="btnClearAds">Clear All Ads</button></div>
+      </div>
+
+      <div class="form">
+        <h3>Statistics</h3>
+        <p>Total Views: <strong id="viewsCount">0</strong></p>
+        <p>Channels: <strong id="statChannels">0</strong></p>
+        <p>EPG items: <strong id="statEpg">0</strong></p>
+        <p>Ads: <strong id="statAds">0</strong></p>
+        <p class="small">Admin code: <strong>AREVOADMIN2025</strong></p>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <h4>Existing Channels</h4><div id="adminChannels"></div>
+      <h4 style="margin-top:8px">Existing EPG</h4><div id="adminEpg"></div>
+      <h4 style="margin-top:8px">Existing Ads</h4><div id="adminAds"></div>
+    </div>
+  </section>
+
+  <div class="footer">© <span id="year"></span> AREVO SPORT</div>
+</div>
+
+<!-- Admin code modal (backdrop blurs the app when open) -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-card">
+    <h3 style="margin:0 0 8px 0">Admin Access</h3>
+    <p class="small" style="margin:0 0 12px 0">Enter admin code to open full Admin Console. Background will blur while modal is open.</p>
+    <input id="adminCodeInput" type="password" class="input" placeholder="Admin code">
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="adminEnterBtn">Enter</button><button class="btn ghost" id="adminCancelBtn">Cancel</button></div>
+    <p class="small" style="margin-top:10px;color:#aaa">Copyright: <strong>AREVOSPORT</strong></p>
+  </div>
+</div>
+
+<script>
+/* --------------------------
+   Firebase config — replace if needed
+   -------------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyBAn3hf1-X-Mgp40duo4bn6TkB32HVyEoQ",
+  authDomain: "arevosport.firebaseapp.com",
+  projectId: "arevosport",
+  storageBucket: "arevosport.appspot.com",
+  messagingSenderId: "164870393057",
+  appId: "1:164870393057:web:610f6fde3cd7b40482fba0",
+  measurementId: "G-SLDJK7F46L"
+};
+firebase.initializeApp(firebaseConfig);
+const fs = firebase.firestore();
+const rtdb = firebase.database();
+const ADMIN_CODE = "ARVILY01";
+
+/* --------------------------
+   Visitor Stats (Realtime DB)
+   - global counter at /stats/views
+   -------------------------- */
+const viewsRef = rtdb.ref('stats/views');
+async function incView(){
+  try{
+    await viewsRef.transaction(v => (v||0) + 1);
+  }catch(e){ console.warn('incView err', e); }
+}
+viewsRef.on('value', snap => {
+  const v = snap.val() || 0;
+  document.getElementById('viewsCount').textContent = v;
+  document.getElementById('viewsSmall').textContent = 'Views: ' + v;
+});
+
+/* --------------------------
+   HLS player
+   -------------------------- */
+let hls = null;
+function playStream(url){
+  const video = document.getElementById('video');
+  document.getElementById('fallback').style.display = 'none';
+  if(!url || url.length < 5){ alert('Stream URL is empty'); return; }
+  if(hls){ try{ hls.destroy(); }catch(e){} hls = null; }
+  if(Hls.isSupported()){
+    hls = new Hls();
+    hls.loadSource(url);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, ()=> video.play().catch(()=>{}));
+  } else if(video.canPlayType('application/vnd.apple.mpegurl')){
+    video.src = url; video.play().catch(()=>{});
+  } else {
+    document.getElementById('fallback').style.display = 'block';
+    document.getElementById('fallback').textContent = 'Stream not supported in this browser.';
+  }
+}
+
+/* --------------------------
+   Rendering: channels with EPG under them
+   -------------------------- */
+function renderChannelsList(channels){
+  const grid = document.getElementById('channelsGrid');
+  grid.innerHTML = '';
+  channels.forEach(ch => {
+    const el = document.createElement('div');
+    el.className = 'channel';
+    el.innerHTML = `
+      <div class="poster" style="background-image:url('${ch.poster||''}')"></div>
+      <div class="title"><strong>${escape(ch.name)}</strong><div style="display:flex;gap:8px"><button class="btn" onclick="playChannel('${ch.id}')">Play</button></div></div>
+      <div style="margin-top:6px" class="small">${escape(ch.desc||'')}</div>
+      <div class="epg" id="epg_${ch.id}">Loading schedule...</div>
+    `;
+    grid.appendChild(el);
+    renderEpgForChannel(ch.id);
+  });
+}
+
+async function renderEpgForChannel(channelId){
+  const el = document.getElementById('epg_' + channelId);
+  if(!el) return;
+  const snap = await fs.collection('epg').where('channelId','==',channelId).orderBy('start','asc').get();
+  if(snap.empty){ el.innerHTML = '<div class="small">No schedule</div>'; return; }
+  el.innerHTML = '';
+  snap.forEach(d => {
+    const it = d.data();
+    const dt = (it.start && it.start.toDate) ? it.start.toDate() : new Date(it.start);
+    const row = document.createElement('div');
+    row.className = 'epg-item';
+    row.innerHTML = `<div>${escape(it.title)}</div><div class="small">${dt.toLocaleString()} <button class="btn ghost" style="margin-left:8px" onclick="editEpg('${d.id}')">Edit</button><button class="btn ghost" onclick="deleteEpg('${d.id}')">Delete</button></div>`;
+    el.appendChild(row);
+  });
+}
+
+/* --------------------------
+   Ads render
+   -------------------------- */
+function renderAdsList(ads){
+  const area = document.getElementById('adsArea'); area.innerHTML='';
+  ads.forEach(ad => {
+    const d = document.createElement('div');
+    d.className = 'aside-ad';
+    d.innerHTML = `<div class="ad" style="background-image:url('${ad.image||''}');height:90px;border-radius:6px"></div>`;
+    d.onclick = ()=> { if(ad.link) window.open(ad.link, '_blank'); };
+    area.appendChild(d);
+  });
+}
+
+/* --------------------------
+   Now / Upcoming (global soonest)
+   -------------------------- */
+async function renderNowUpcoming(){
+  const snap = await fs.collection('epg').orderBy('start','asc').limit(1).get();
+  if(snap.empty){ document.getElementById('nowArea').textContent = 'No schedule'; return; }
+  const it = snap.docs[0].data(); const dt = (it.start && it.start.toDate) ? it.start.toDate() : new Date(it.start);
+  document.getElementById('nowArea').innerHTML = `<strong>${escape(it.title)}</strong><div class="small">${escape(it.channelName||'')} • ${dt.toLocaleString()}</div>`;
+}
+
+/* --------------------------
+   Listeners: real-time updates
+   -------------------------- */
+function startRealtimeListeners(){
+  fs.collection('channels').orderBy('priority','asc').onSnapshot(snap => {
+    const arr = []; snap.forEach(d => arr.push({id:d.id, ...d.data()}));
+    window._channels = arr;
+    document.getElementById('statChannels').textContent = arr.length;
+    renderChannelsList(arr);
+    populateEpgSelect(arr);
+  });
+  fs.collection('epg').orderBy('start','asc').onSnapshot(snap => {
+    const arr = []; snap.forEach(d => arr.push({id:d.id, ...d.data()}));
+    window._epg = arr;
+    document.getElementById('statEpg').textContent = arr.length;
+    // re-render epg boxes for each channel
+    (window._channels || []).forEach(c => renderEpgForChannel(c.id));
+    renderNowUpcoming();
+    renderAdminEpgList(arr);
+  });
+  fs.collection('ads').orderBy('priority','asc').onSnapshot(snap => {
+    const arr = []; snap.forEach(d => arr.push({id:d.id, ...d.data()}));
+    window._ads = arr;
+    document.getElementById('statAds').textContent = arr.length;
+    renderAdsList(arr);
+    renderAdminAdsList(arr);
+  });
+}
+
+/* --------------------------
+   Admin: Add / Edit / Delete Channels
+   -------------------------- */
+document.getElementById('btnAddChannel').addEventListener('click', async ()=>{
+  const name = document.getElementById('ch_name').value.trim();
+  const poster = document.getElementById('ch_poster').value.trim();
+  const m3u8 = document.getElementById('ch_m3u8').value.trim();
+  const desc = document.getElementById('ch_desc').value.trim();
+  if(!name) return alert('Channel name required');
+  try{
+    await fs.collection('channels').add({name, poster, m3u8, desc, priority: Date.now()});
+    document.getElementById('ch_name').value=''; document.getElementById('ch_poster').value=''; document.getElementById('ch_m3u8').value=''; document.getElementById('ch_desc').value='';
+    alert('Channel added');
+  }catch(e){ console.error(e); alert('Failed to add channel'); }
+});
+
+async function quickEditChannel(id){
+  const doc = await fs.collection('channels').doc(id).get();
+  if(!doc.exists) return alert('Channel not found');
+  const data = doc.data();
+  const name = prompt('Channel name', data.name) || data.name;
+  const poster = prompt('Poster image URL', data.poster || '') || data.poster || '';
+  const m3u8 = prompt('.m3u8 link', data.m3u8 || '') || data.m3u8 || '';
+  const desc = prompt('Description', data.desc || '') || data.desc || '';
+  try{ await fs.collection('channels').doc(id).update({name, poster, m3u8, desc}); alert('Channel updated'); }catch(e){console.error(e);alert('Update failed');}
+}
+
+async function deleteChannel(id){
+  if(!confirm('Delete this channel? Its EPG items will not be removed automatically.')) return;
+  try{ await fs.collection('channels').doc(id).delete(); alert('Deleted'); }catch(e){console.error(e); alert('Delete failed'); }
+}
+
+/* --------------------------
+   Admin: EPG add/edit/delete
+   -------------------------- */
+document.getElementById('btnAddEpg').addEventListener('click', async ()=>{
+  const channelId = document.getElementById('epg_channel').value;
+  const title = document.getElementById('epg_title').value.trim();
+  const start = document.getElementById('epg_start').value;
+  if(!channelId || !title || !start) return alert('Fill all EPG fields');
+  try{
+    const channelDoc = await fs.collection('channels').doc(channelId).get();
+    const channelName = channelDoc.exists ? channelDoc.data().name : '';
+    await fs.collection('epg').add({channelId, channelName, title, start: firebase.firestore.Timestamp.fromDate(new Date(start)), createdAt: firebase.firestore.FieldValue.serverTimestamp()});
+    document.getElementById('epg_title').value=''; document.getElementById('epg_start').value='';
+    alert('EPG added');
+  }catch(e){ console.error(e); alert('Failed to add EPG'); }
+});
+
+async function editEpg(id){
+  const doc = await fs.collection('epg').doc(id).get();
+  if(!doc.exists) return alert('Not found');
+  const data = doc.data();
+  const title = prompt('Title', data.title) || data.title;
+  const startInput = prompt('Start (YYYY-MM-DDTHH:MM)', formatTsInput(data.start)) || formatTsInput(data.start);
+  try{ await fs.collection('epg').doc(id).update({title, start: firebase.firestore.Timestamp.fromDate(new Date(startInput))}); alert('EPG updated'); }catch(e){console.error(e);alert('Update failed');}
+}
+
+async function deleteEpg(id){ if(!confirm('Delete this EPG item?')) return; try{ await fs.collection('epg').doc(id).delete(); alert('Deleted'); }catch(e){console.error(e);alert('Delete failed');} }
+
+/* --------------------------
+   Admin: Ads add/edit/delete
+   -------------------------- */
+document.getElementById('btnAddAd').addEventListener('click', async ()=>{
+  const title = document.getElementById('ad_title').value.trim();
+  const image = document.getElementById('ad_image').value.trim();
+  const link = document.getElementById('ad_link').value.trim();
+  if(!image || !link) return alert('Provide ad image URL and link');
+  try{ await fs.collection('ads').add({title, image, link, priority: Date.now()}); document.getElementById('ad_title').value=''; document.getElementById('ad_image').value=''; document.getElementById('ad_link').value=''; alert('Ad added'); }catch(e){console.error(e);alert('Failed to add ad');}
+});
+
+async function editAd(id){
+  const doc = await fs.collection('ads').doc(id).get();
+  if(!doc.exists) return alert('Not found');
+  const data = doc.data();
+  const title = prompt('Title', data.title) || data.title;
+  const link = prompt('Link', data.link) || data.link;
+  try{ await fs.collection('ads').doc(id).update({title, link}); alert('Ad updated'); }catch(e){console.error(e);alert('Update failed');}
+}
+
+async function deleteAd(id){ if(!confirm('Delete this ad?')) return; try{ await fs.collection('ads').doc(id).delete(); alert('Deleted'); }catch(e){console.error(e);alert('Delete failed');} }
+
+/* --------------------------
+   Admin lists for manage (populate admin lists)
+   -------------------------- */
+function renderAdminChannelsList(channels){
+  const out = document.getElementById('adminChannels'); out.innerHTML='';
+  channels.forEach(c=>{
+    const d = document.createElement('div'); d.className='channel'; d.style.padding='8px'; d.style.marginBottom='6px';
+    d.innerHTML = `<strong>${escape(c.name)}</strong><div class="small">${escape(c.desc||'')}</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn" onclick="quickEditChannel('${c.id}')">Edit</button><button class="btn ghost" onclick="deleteChannel('${c.id}')">Delete</button></div>`;
+    out.appendChild(d);
+  });
+}
+function renderAdminEpgList(epg){
+  const out = document.getElementById('adminEpg'); out.innerHTML='';
+  epg.forEach(e=>{
+    const d = document.createElement('div'); d.className='channel'; d.style.padding='8px'; d.style.marginBottom='6px';
+    d.innerHTML = `<strong>${escape(e.title)}</strong><div class="small">${escape(e.channelName||'')} • ${formatTs(e.start)}</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn" onclick="editEpg('${e.id}')">Edit</button><button class="btn ghost" onclick="deleteEpg('${e.id}')">Delete</button></div>`;
+    out.appendChild(d);
+  });
+}
+function renderAdminAdsList(ads){
+  const out = document.getElementById('adminAds'); out.innerHTML='';
+  ads.forEach(a=>{
+    const d = document.createElement('div'); d.className='channel'; d.style.padding='8px'; d.style.marginBottom='6px';
+    d.innerHTML = `<strong>${escape(a.title)}</strong><div class="small">${escape(a.link||'')}</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn" onclick="editAd('${a.id}')">Edit</button><button class="btn ghost" onclick="deleteAd('${a.id}')">Delete</button></div>`;
+    out.appendChild(d);
+  });
+}
+
+/* --------------------------
+   Utility helpers
+   -------------------------- */
+function populateEpgSelect(channels){
+  const sel = document.getElementById('epg_channel'); sel.innerHTML='';
+  channels.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
+}
+
+function escape(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function formatTs(ts){ if(!ts) return ''; if(ts.seconds) return new Date(ts.seconds*1000).toLocaleString(); return new Date(ts).toLocaleString(); }
+function formatTsInput(ts){ if(!ts) return ''; if(ts.seconds) return new Date(ts.seconds*1000).toISOString().slice(0,16); return new Date(ts).toISOString().slice(0,16); }
+
+/* --------------------------
+   Clear collections (dangerous) - batch delete
+   -------------------------- */
+async function clearCollection(col){
+  if(!confirm('Delete ALL documents in ' + col + '? This cannot be undone.')) return;
+  try{
+    const snap = await fs.collection(col).get();
+    const batch = fs.batch();
+    snap.forEach(d => batch.delete(fs.collection(col).doc(d.id)));
+    await batch.commit();
+    alert('Cleared ' + col);
+  }catch(e){ console.error(e); alert('Clear failed'); }
+}
+document.getElementById('btnClearChannels').addEventListener('click', ()=> clearCollection('channels'));
+document.getElementById('btnClearEpg').addEventListener('click', ()=> clearCollection('epg'));
+document.getElementById('btnClearAds').addEventListener('click', ()=> clearCollection('ads'));
+
+/* --------------------------
+   Admin modal and unlocking admin page
+   -------------------------- */
+const modal = document.getElementById('modalBackdrop');
+document.getElementById('btnOpenAdmin').addEventListener('click', ()=> {
+  modal.classList.add('open');
+  // blur app container while modal open
+  document.getElementById('appContainer').style.filter = 'blur(4px)';
+});
+document.getElementById('adminCancelBtn').addEventListener('click', ()=> {
+  modal.classList.remove('open');
+  document.getElementById('appContainer').style.filter = '';
+});
+document.getElementById('adminEnterBtn').addEventListener('click', ()=> {
+  const v = document.getElementById('adminCodeInput').value.trim();
+  if(v === ADMIN_CODE){
+    modal.classList.remove('open');
+    document.getElementById('appContainer').style.filter = '';
+    openAdminPage();
+  } else {
+    alert('Wrong admin code');
+  }
+});
+function openAdminPage(){
+  document.getElementById('home').style.display = 'none';
+  document.getElementById('channels').style.display = 'none';
+  document.getElementById('schedule').style.display = 'none';
+  document.getElementById('about').style.display = 'none';
+  document.getElementById('adminPage').classList.add('active');
+  document.getElementById('adminPage').style.display = 'block';
+}
+
+/* --------------------------
+   Utility: show pages (nav)
+   -------------------------- */
+function showPage(id){
+  ['home','channels','schedule','about','adminPage'].forEach(p=>{ const el=document.getElementById(p); if(el) el.style.display = (p===id?'block':'none'); });
+}
+
+/* --------------------------
+   Export JSON backup
+   -------------------------- */
+document.getElementById('btnExport').addEventListener('click', async ()=>{
+  const payload = {channels:[], epg:[], ads:[]};
+  (await fs.collection('channels').get()).forEach(d => payload.channels.push({id:d.id, ...d.data()}));
+  (await fs.collection('epg').get()).forEach(d => payload.epg.push({id:d.id, ...d.data()}));
+  (await fs.collection('ads').get()).forEach(d => payload.ads.push({id:d.id, ...d.data()}));
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'arevo_backup.json'; a.click();
+});
+
+/* --------------------------
+   Initial setup: ensure 3 default channels exist if none
+   -------------------------- */
+async function ensureDefaults(){
+  const snap = await fs.collection('channels').get();
+  if(!snap.empty) return;
+  const defaults = [
+    {name:'AREVO SPORT 1', poster:'https://images.unsplash.com/photo-1517927033932-b3d3b6a7f1c2?w=800&q=60', m3u8:'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8', desc:'Live football and premium matches.', priority:1},
+    {name:'AREVO SPORT 2', poster:'https://images.unsplash.com/photo-1518098268026-4e89f1a6ee3b?w=800&q=60', m3u8:'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8', desc:'Highlights and replays.', priority:2},
+    {name:'AREVO SPORT 3', poster:'https://images.unsplash.com/photo-1505842465776-3d8b2b5e2f28?w=800&q=60', m3u8:'https://demo.unified-streaming.com/k8s/features/stable/tears-of-steel/tears-of-steel.m3u8', desc:'Live commentary and shows.', priority:3}
+  ];
+  for(const c of defaults) await fs.collection('channels').add(c);
+}
+
+/* --------------------------
+   Admin lists rendering (use snapshot data)
+   -------------------------- */
+function renderAdminListsFromSnapshots(){
+  renderAdminChannelsList(window._channels || []);
+  renderAdminEpgList(window._epg || []);
+  renderAdminAdsList(window._ads || []);
+}
+
+/* --------------------------
+   Firestore listeners + start
+   -------------------------- */
+function start(){
+  ensureDefaults();
+  startRealtimeListeners();
+  // reflect admin lists when changes occur
+  fs.collection('channels').onSnapshot(()=> renderAdminListsFromSnapshots());
+  fs.collection('epg').onSnapshot(()=> renderAdminListsFromSnapshots());
+  fs.collection('ads').onSnapshot(()=> renderAdminListsFromSnapshots());
+  // increment views once per page load
+  incView();
+  // set year
+  document.getElementById('year').textContent = new Date().getFullYear();
+  // basic control buttons
+  document.getElementById('muteBtn').addEventListener('click', ()=> { const v = document.getElementById('video'); v.muted = !v.muted; document.getElementById('muteBtn').textContent = v.muted ? 'Unmute' : 'Mute'; });
+  document.getElementById('stopBtn').addEventListener('click', ()=> { const v = document.getElementById('video'); if(hls){ try{ hls.stopLoad(); }catch(e){} } v.pause(); v.currentTime = 0; });
+  // admin close
+  document.getElementById('btnCloseAdmin').addEventListener('click', ()=> { document.getElementById('adminPage').classList.remove('active'); showPage('home'); });
+  // clear admin lists initially
+  renderAdminListsFromSnapshots();
+}
+
+start();
+
+</script>
+</body>
+</html>
